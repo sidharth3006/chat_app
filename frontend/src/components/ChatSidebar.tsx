@@ -15,10 +15,11 @@ interface ChatSidebarProps{
     selectedUser: string | null; 
     setSelectedUser: (userId: string | null) => void;  
     handleLogout: ()=>void; 
+    createChat: (user: User) => Promise<void>;
 }
 
 
-const ChatSidebar = ({sidebarOpen, setSidebarOpen, showAllUsers, setShowAllUsers, OtherUsers,loggedInUser, chats,setSelectedUser, selectedUser, handleLogout}: ChatSidebarProps) => { 
+const ChatSidebar = ({sidebarOpen, setSidebarOpen, showAllUsers, setShowAllUsers, OtherUsers,loggedInUser, chats,setSelectedUser, selectedUser, handleLogout, createChat}: ChatSidebarProps) => { 
     const [searchQuery, setSearchQuery] = useState<string>('');  
     return ( 
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-gray-800 transform transition-transform duration-300 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0 flex flex-col`}>
@@ -26,7 +27,7 @@ const ChatSidebar = ({sidebarOpen, setSidebarOpen, showAllUsers, setShowAllUsers
         <div className="p-6 border-b border-gray-700">
 
           <div className="sm:hidden flex justify-end mb-0">
-            <button className="p-2 hover:bg-gray-700 rounded-lg transition-colors"><X className="w-6 h-6 text-gray-300" /></button>            
+            <button className="p-2 hover:bg-gray-700 rounded-lg transition-colors" onClick={() => setSidebarOpen(false)}><X className="w-6 h-6 text-gray-300" /></button>            
           </div>
            
          <div className="flex items-center justify-between">
@@ -69,7 +70,7 @@ const ChatSidebar = ({sidebarOpen, setSidebarOpen, showAllUsers, setShowAllUsers
                         <div className="space-y-2 overflow-y-auto h-full">
                             {
                                 OtherUsers?.filter((u) => u._id !== loggedInUser?._id && u.name.toLowerCase().includes(searchQuery.toLowerCase())).map((user) => (
-                                    <button key={user._id} className="w-full text-left">
+                                    <button key={user._id} className="w-full text-left" onClick={() => createChat(user)}>
                                         <div className="flex items-center gap-3 p-2 hover:bg-gray-700 rounded-lg transition-colors">
                                             <div className="relative">
                                                 <UserCircle className="w-10 h-10 text-gray-400" />
