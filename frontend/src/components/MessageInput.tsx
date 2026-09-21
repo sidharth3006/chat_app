@@ -2,10 +2,10 @@ import { Paperclip, X } from 'lucide-react';
 import React, { useState } from 'react'
 
 interface MessageInputProps{
-    selectedUser: string | null; 
-    message: string; 
-    setMessage: (message: string) => void; 
-    handleMessageSend: (e: React.FormEvent<HTMLFormElement>, images?: File | null) => Promise<boolean>; 
+    selectedUser: string | null;
+    message: string;
+    setMessage: (message: string) => void;
+    handleMessageSend: (e: React.FormEvent<HTMLFormElement>, images?: File | null) => Promise<boolean>;
 }
 
 const MessageInput = ({selectedUser, message, setMessage, handleMessageSend}: MessageInputProps) => {

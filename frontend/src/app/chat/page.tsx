@@ -10,6 +10,7 @@ import MessageInput from '@/components/MessageInput';
 import Cookies from 'js-cookie';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useSocket } from '@/context/SocketContext';
 
 
 export interface Message {
@@ -30,7 +31,11 @@ export interface Message {
 
 const ChatApp = () => { 
 
-  const {loading, isAuth, logoutUser, chats, user:loggedInUser, fetchChats,setChats, otherUsers} = useAppData(); 
+  const { socket, onlineUsers } = useSocket();
+
+  const {loading, isAuth, logoutUser, chats, user:loggedInUser, fetchChats,setChats, otherUsers} = useAppData();
+
+  console.log("onlineUsers", onlineUsers);
 
   const [selectedUser, setSelectedUser] = React.useState<string | null>(null);
   const [message,setMessage] = useState(""); 
@@ -38,7 +43,8 @@ const ChatApp = () => {
   const [messages, setMessages] = useState<Message[] | null>(null) 
   const [user,setUser] = useState<User | null>(null) 
   const [showAllUsers, setShowAllUsers] = useState(false); 
-  const [isTyping,setIsTyping] = useState(false); 
+  const [isTyping,setIsTyping] = useState(false); // Tracks if current user is typing
+  const [otherUserTyping,setOtherUserTyping] = useState(false); // Tracks if other user is typing
   const [typingTimeOut,setTypingTimeOut] = useState<NodeJS.Timeout | null>(null); 
 
 
@@ -77,8 +83,18 @@ const ChatApp = () => {
       toast.error("Please select a chat first");
       return false;
     }
+    
 
     //socket work
+    if(typingTimeOut){
+      clearTimeout(typingTimeOut);
+      setTypingTimeOut(null);
+    }
+
+    socket?.emit("stopTyping",{
+      chatId: selectedUser,
+      userId: user?._id,
+    })
 
     const token = Cookies.get("token");
     
@@ -119,14 +135,87 @@ const ChatApp = () => {
     }
   }
 
-
+// when the logged in user types in the message input, emit typing event to socket and stop typing after 2 seconds 
   const handleTyping = (value: string) => {
-    setMessage(value) 
+    setMessage(value)
 
-    if(!selectedUser) return 
+    if(!selectedUser || !socket) return
 
     //socket setup
-  } 
+    if(!isTyping){
+      setIsTyping(true);
+      socket.emit("typing",{
+        chatId: selectedUser,
+        userId: loggedInUser?._id,
+      })
+    }
+
+
+    if(typingTimeOut){
+      clearTimeout(typingTimeOut);
+      setTypingTimeOut(null);
+    }
+
+    const timeout = setTimeout(() => {
+      setIsTyping(false);
+      socket.emit("stopTyping",{
+        chatId: selectedUser,
+        userId: loggedInUser?._id,
+      })
+    }, 2000);
+
+    setTypingTimeOut(timeout);
+
+  };
+
+// this function listens to the typing event from the socket and sets the otherUserTyping state to true if the user is typing
+  useEffect(() => {
+    socket?.on("userTyping",(data)=>{
+      console.log("User is typing:", data);
+      if(data.chatId === selectedUser && data.userId !== loggedInUser?._id){
+        setOtherUserTyping(true);
+      }
+    });
+
+    socket?.on("userStoppedTyping",(data)=>{
+      console.log("User stopped typing:", data);
+      if(data.chatId === selectedUser && data.userId !== loggedInUser?._id){
+        setOtherUserTyping(false);
+      }
+    });
+
+    return () => {
+      socket?.off("userTyping");
+      socket?.off("userStoppedTyping");
+    }
+  },[socket,selectedUser,loggedInUser?._id]) 
+
+
+  // this function fetches messages when a user selects a chat and sets the isTyping and otherUserTyping states to false
+  useEffect(() => {
+    if(selectedUser){
+      fetchMessages();
+      setIsTyping(false);
+      setOtherUserTyping(false);
+
+      socket?.emit("joinChat",selectedUser);
+
+      return () => {
+        socket?.emit("leaveChat",selectedUser);
+        setMessages(null);
+      }
+    }
+  },[selectedUser,socket])
+
+
+  // this function clears the typing timeout when the component unmounts
+  useEffect(()=>{
+    return () => {
+      if (typingTimeOut){
+        clearTimeout(typingTimeOut);
+      }
+    }
+  },[typingTimeOut])
 
 
 
@@ -175,10 +264,11 @@ const ChatApp = () => {
         selectedUser={selectedUser}
         setSelectedUser={setSelectedUser}
         handleLogout={logoutUser}
-        createChat={createChat}
+        createChat={createChat} 
+        onlineUsers={onlineUsers}
       />
       <div className="flex-1 flex flex-col justify-between p-4 ml-0 sm:ml-64 backdrop-blur-xl bg-white/5 border-1 border-white/10">
-         <ChatHeader user={user} setSidebarOpen={setSidebarOpen} isTyping={isTyping} />
+         <ChatHeader user={user} setSidebarOpen={setSidebarOpen} isTyping={otherUserTyping} onlineUsers={onlineUsers} />
          <ChatMessages selectedUser={selectedUser} messages={messages} loggedInUser={loggedInUser} />
          <MessageInput selectedUser={selectedUser} message={message} setMessage={handleTyping} handleMessageSend={handleMessageSend} /> 
       </div>

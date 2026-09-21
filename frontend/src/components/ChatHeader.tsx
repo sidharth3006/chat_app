@@ -6,11 +6,13 @@ import { User } from "@/context/AppContext";
 interface ChatHeaderProps{
     user: User|null; 
     setSidebarOpen: (open: boolean)=> void; 
-    isTyping: Boolean; 
+    isTyping: Boolean;
+    onlineUsers: string[]; 
 }
 
-const ChatHeader = ({user, setSidebarOpen, isTyping}: ChatHeaderProps) => {
-    console.log("ChatHeader user:", user); // Debug log
+const ChatHeader = ({user, setSidebarOpen, isTyping, onlineUsers }: ChatHeaderProps) => {
+    console.log("ChatHeader user:", user); // Debug log 
+    const isOnline = onlineUsers.includes(user?._id || "");
 
     return (
         <>
@@ -33,13 +35,25 @@ const ChatHeader = ({user, setSidebarOpen, isTyping}: ChatHeaderProps) => {
                         {user.name ? user.name.charAt(0).toUpperCase() : <UserCircle className="w-8 h-8 text-gray-300"/>}
                     </div>
                     {/* online user setup */}
-                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-800"></div>
+                    {isOnline && (
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-800"></div>
+                    )}
                  </div>
 
                  {/* user info */}
                  <div>
                     <h2 className="text-xl font-semibold text-white">{user.name}</h2>
-                    <p className="text-sm text-gray-400">{isTyping ? "Typing..." : "Online"}</p>
+                    {
+                         isTyping ? (
+                            <div className="text-sm text-blue-400">Typing...</div>
+                        ) : (
+                            isOnline ? (
+                                <div className="text-sm text-green-400">Online</div>
+                            ) : (
+                                <div className="text-sm text-gray-400">Offline</div>
+                            )
+                        )
+                    }
                  </div>
                 </>
                 ):(
