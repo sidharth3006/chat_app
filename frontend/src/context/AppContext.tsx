@@ -54,10 +54,10 @@ interface AppProviderProps{
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({children}) => {
-    
-    const [user, setUser] = useState<User | null>(null); 
-    const [isAuth, setIsAuth] = useState(false); 
-    const [loading, setLoading] = useState(false);
+
+    const [user, setUser] = useState<User | null>(null);
+    const [isAuth, setIsAuth] = useState(false);
+    const [loading, setLoading] = useState(true); // Start with loading = true
 
     async function fetchUser(){
         setLoading(true);

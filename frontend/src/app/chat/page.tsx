@@ -131,9 +131,10 @@ const ChatApp = () => {
       moveChatToTop(
         selectedUser!,
         {
-          text: displayText, 
+          text: displayText,
           sender: data.sender
-        }
+        },
+        false // Don't increment unseen count for own messages
       )
 
       toast.success(imageFile ? "Image sent" : "Message sent");
@@ -185,21 +186,23 @@ const ChatApp = () => {
 
     socket?.on("newMessage",(message)=>{
 
-      if(selectedUser === message.chatId){ 
+      if(selectedUser === message.chatId){
         setMessages((prev)=>{
-          const currentMessages = prev || []; 
+          const currentMessages = prev || [];
           const messageExists = currentMessages.some(msg => msg._id === message._id);
           if(messageExists) return currentMessages;
           return [...currentMessages, message];
         });
 
-        moveChatToTop(message.chatId, message);
+        // Move chat to top but don't increment unseen count (user is viewing chat)
+        moveChatToTop(message.chatId, message, false);
       }else{
+        // Move chat to top and increment unseen count (user not viewing chat)
         moveChatToTop(message.chatId, message, true);
       }
     })
 
-    socket?.on("messagesSeen",(data)=>{
+    socket?.on("messageSeen",(data)=>{
       console.log("Messages seen:", data);
 
       if(selectedUser === data.chatId ){
@@ -240,13 +243,13 @@ const ChatApp = () => {
       }
     });
 
-    return () => { 
+    return () => {
       socket?.off("newMessage");
-      socket?.off("userTyping"); 
-      socket?.off("messagesSeen");
+      socket?.off("messageSeen");
+      socket?.off("userTyping");
       socket?.off("userStoppedTyping");
     }
-  },[socket,selectedUser,setChats,loggedInUser?._id]) 
+  },[socket,selectedUser,loggedInUser?._id]) 
 
 
   // this function fetches messages when a user selects a chat and sets the isTyping and otherUserTyping states to false
@@ -277,7 +280,7 @@ const ChatApp = () => {
     }
   },[typingTimeOut])
 
-  const moveChatToTop= (chatId: string, newMessage: any,updatedUnseenCount=true)=>{
+  const moveChatToTop= (chatId: string, newMessage: any, incrementUnseenCount=false)=>{
     setChats((prev)=>{
       if(!prev) return null;
 
@@ -286,19 +289,24 @@ const ChatApp = () => {
 
       if(chatIndex === -1) return prev;
 
-      const [moveChat] = updatedChats.splice(chatIndex, 1);  
+      const [moveChat] = updatedChats.splice(chatIndex, 1);
+
+      // Only increment unseen count if:
+      // 1. incrementUnseenCount is true (user not viewing chat)
+      // 2. Message is from someone else (not from logged in user)
+      const shouldIncrementUnseen = incrementUnseenCount && newMessage.sender !== loggedInUser?._id;
 
       const updatedChat = {
-        ...moveChat, 
+        ...moveChat,
         chat:{
           ...moveChat.chat,
           latestMessage: {
-            text: newMessage.text, 
+            text: newMessage.text,
             sender: newMessage.sender,
           },
           updatedAt: new Date().toString(),
 
-          unseenCount: updatedUnseenCount && newMessage.sender !== loggedInUser?._id ? (moveChat.chat.unseenCount || 0) + 1 : moveChat.chat.unseenCount,
+          unseenCount: shouldIncrementUnseen ? (moveChat.chat.unseenCount || 0) + 1 : moveChat.chat.unseenCount,
         },
 
       };
@@ -344,7 +352,7 @@ const ChatApp = () => {
       console.log("Messages response:", data);
       setMessages(data.messages);
       setUser(data.otherUser || data.user); // Handle both response formats
-      await fetchChats();
+      await fetchChats(); // Refetch chats to get updated unseen counts
     }catch(error){
       console.error("Failed to fetch messages:", error);
       toast.error("Failed to fetch messages");
